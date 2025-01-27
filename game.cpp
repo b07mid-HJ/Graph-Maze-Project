@@ -19,10 +19,45 @@ Game::Game(int size) : gridSize(size), score(0), startPos({0,0}), endPos({0,0}) 
 void Game::initializeAdjacencyMatrix() {
     int totalCells = gridSize * gridSize;
     adjacencyMatrix.resize(totalCells, std::vector<bool>(totalCells, false));
+    
+    // Fill the adjacency matrix based on wall information
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize; j++) {
+            int currentIndex = i * gridSize + j;
+            
+            // Check all four directions
+            // Up
+            if (i > 0 && !grid[i][j].walls[0] && !grid[i-1][j].walls[2]) {
+                int neighborIndex = (i-1) * gridSize + j;
+                adjacencyMatrix[currentIndex][neighborIndex] = true;
+                adjacencyMatrix[neighborIndex][currentIndex] = true;
+            }
+            // Right
+            if (j < gridSize-1 && !grid[i][j].walls[1] && !grid[i][j+1].walls[3]) {
+                int neighborIndex = i * gridSize + (j+1);
+                adjacencyMatrix[currentIndex][neighborIndex] = true;
+                adjacencyMatrix[neighborIndex][currentIndex] = true;
+            }
+            // Down
+            if (i < gridSize-1 && !grid[i][j].walls[2] && !grid[i+1][j].walls[0]) {
+                int neighborIndex = (i+1) * gridSize + j;
+                adjacencyMatrix[currentIndex][neighborIndex] = true;
+                adjacencyMatrix[neighborIndex][currentIndex] = true;
+            }
+            // Left
+            if (j > 0 && !grid[i][j].walls[3] && !grid[i][j-1].walls[1]) {
+                int neighborIndex = i * gridSize + (j-1);
+                adjacencyMatrix[currentIndex][neighborIndex] = true;
+                adjacencyMatrix[neighborIndex][currentIndex] = true;
+            }
+        }
+    }
 }
 
 void Game::generateGridDFS() {
     generateMazeUsingDFS();
+    // Update adjacency matrix after maze generation
+    updateAdjacencyMatrix();
     assignRandomLetters();
     // Initialize all cells with spaces before placing words
     for (auto& row : grid) {
@@ -111,6 +146,12 @@ void Game::removeWall(int x1, int y1, int x2, int y2) {
             grid[x2][y2].walls[2] = false;  // Remove bottom wall
         }
     }
+    
+    // Update adjacency matrix
+    int index1 = coordToIndex(x1, y1);
+    int index2 = coordToIndex(x2, y2);
+    adjacencyMatrix[index1][index2] = true;
+    adjacencyMatrix[index2][index1] = true;
 }
 
 void Game::assignRandomLetters() {
@@ -330,54 +371,53 @@ int Game::countWordsInPath(const std::vector<std::pair<int, int>>& path) const {
 
 std::vector<std::pair<int, int>> Game::bfsSearch() {
     allPaths.clear();
+    int totalCells = gridSize * gridSize;
+    std::vector<bool> visited(totalCells, false);
     
-    std::queue<std::vector<std::pair<int, int>>> pathQueue;
-    pathQueue.push({startPos});
+    // Convert start and end positions to indices
+    int startIndex = coordToIndex(startPos.first, startPos.second);
+    int endIndex = coordToIndex(endPos.first, endPos.second);
     
-    std::vector<std::vector<bool>> visited(gridSize, std::vector<bool>(gridSize, false));
-    visited[startPos.first][startPos.second] = true;
+    std::queue<std::vector<int>> pathQueue;
+    pathQueue.push({startIndex});
+    visited[startIndex] = true;
     
     while (!pathQueue.empty()) {
         auto currentPath = pathQueue.front();
         pathQueue.pop();
         
-        auto current = currentPath.back();
-        grid[current.first][current.second].visited = true;
-        visualizeTraversal(currentPath);
+        int currentIndex = currentPath.back();
+        auto currentCoord = indexToCoord(currentIndex);
+        grid[currentCoord.first][currentCoord.second].visited = true;
         
-        if (current == endPos) {
-            int wordCount = countWordsInPath(currentPath);
-            int score = calculateScore(currentPath);
-            allPaths.emplace_back(currentPath, wordCount, score);
+        // Convert current index path to coordinates for visualization
+        std::vector<std::pair<int, int>> coordPath;
+        for (int idx : currentPath) {
+            coordPath.push_back(indexToCoord(idx));
+        }
+        visualizeTraversal(coordPath);
+        
+        if (currentIndex == endIndex) {
+            int wordCount = countWordsInPath(coordPath);
+            int score = calculateScore(coordPath);
+            allPaths.emplace_back(coordPath, wordCount, score);
             continue;
         }
         
-        const int dx[] = {-1, 0, 1, 0};
-        const int dy[] = {0, 1, 0, -1};
-        
-        for (int i = 0; i < 4; i++) {
-            int newX = current.first + dx[i];
-            int newY = current.second + dy[i];
-            
-            bool hasNoWall = false;
-            if (i == 0) hasNoWall = !grid[current.first][current.second].walls[0] && isValidPosition(newX, newY) && !grid[newX][newY].walls[2];
-            if (i == 1) hasNoWall = !grid[current.first][current.second].walls[1] && isValidPosition(newX, newY) && !grid[newX][newY].walls[3];
-            if (i == 2) hasNoWall = !grid[current.first][current.second].walls[2] && isValidPosition(newX, newY) && !grid[newX][newY].walls[0];
-            if (i == 3) hasNoWall = !grid[current.first][current.second].walls[3] && isValidPosition(newX, newY) && !grid[newX][newY].walls[1];
-            
-            if (isValidPosition(newX, newY) && !visited[newX][newY] && hasNoWall) {
+        // Check all possible connections in adjacency matrix
+        for (int nextIndex = 0; nextIndex < totalCells; nextIndex++) {
+            if (adjacencyMatrix[currentIndex][nextIndex] && !visited[nextIndex]) {
+                visited[nextIndex] = true;
                 auto newPath = currentPath;
-                newPath.push_back({newX, newY});
+                newPath.push_back(nextIndex);
                 pathQueue.push(newPath);
-                visited[newX][newY] = true;
             }
         }
     }
     
-    // Find the best path
+    // Find best path (same logic as before)
     if (allPaths.empty()) return {};
     
-    // First, check if any paths have words
     bool hasWords = false;
     for (const auto& pathInfo : allPaths) {
         if (pathInfo.wordCount > 0) {
@@ -386,18 +426,13 @@ std::vector<std::pair<int, int>> Game::bfsSearch() {
         }
     }
     
-    // Sort paths based on criteria
     std::sort(allPaths.begin(), allPaths.end(), 
         [hasWords](const PathInfo& a, const PathInfo& b) {
             if (hasWords) {
-                // If paths have different word counts, prefer more words
                 if (a.wordCount != b.wordCount) return a.wordCount > b.wordCount;
-                // If same word count, prefer higher score
                 if (a.score != b.score) return a.score > b.score;
-                // If same score, prefer shorter path
                 return a.path.size() < b.path.size();
             } else {
-                // If no words found, just return shortest path
                 return a.path.size() < b.path.size();
             }
         });
@@ -427,47 +462,46 @@ int Game::calculateScore(const std::vector<std::pair<int, int>>& path) const {
 
 std::vector<std::pair<int, int>> Game::dfsSearch() {
     allPaths.clear();
+    int totalCells = gridSize * gridSize;
+    std::vector<bool> visited(totalCells, false);
+    std::vector<int> currentPath;
     
-    std::vector<std::vector<bool>> visited(gridSize, std::vector<bool>(gridSize, false));
-    std::vector<std::pair<int, int>> currentPath;
+    int startIndex = coordToIndex(startPos.first, startPos.second);
+    int endIndex = coordToIndex(endPos.first, endPos.second);
     
-    std::function<void(std::pair<int, int>)> dfs = [&](std::pair<int, int> current) {
-        visited[current.first][current.second] = true;
-        currentPath.push_back(current);
-        grid[current.first][current.second].visited = true;
-        visualizeTraversal(currentPath);
+    std::function<void(int)> dfs = [&](int currentIndex) {
+        visited[currentIndex] = true;
+        currentPath.push_back(currentIndex);
         
-        if (current == endPos) {
-            int wordCount = countWordsInPath(currentPath);
-            int score = calculateScore(currentPath);
-            allPaths.emplace_back(currentPath, wordCount, score);
+        auto currentCoord = indexToCoord(currentIndex);
+        grid[currentCoord.first][currentCoord.second].visited = true;
+        
+        // Convert current index path to coordinates for visualization
+        std::vector<std::pair<int, int>> coordPath;
+        for (int idx : currentPath) {
+            coordPath.push_back(indexToCoord(idx));
+        }
+        visualizeTraversal(coordPath);
+        
+        if (currentIndex == endIndex) {
+            int wordCount = countWordsInPath(coordPath);
+            int score = calculateScore(coordPath);
+            allPaths.emplace_back(coordPath, wordCount, score);
         }
         
-        const int dx[] = {-1, 0, 1, 0};
-        const int dy[] = {0, 1, 0, -1};
-        
-        for (int i = 0; i < 4; i++) {
-            int newX = current.first + dx[i];
-            int newY = current.second + dy[i];
-            
-            bool hasNoWall = false;
-            if (i == 0) hasNoWall = !grid[current.first][current.second].walls[0] && isValidPosition(newX, newY) && !grid[newX][newY].walls[2];
-            if (i == 1) hasNoWall = !grid[current.first][current.second].walls[1] && isValidPosition(newX, newY) && !grid[newX][newY].walls[3];
-            if (i == 2) hasNoWall = !grid[current.first][current.second].walls[2] && isValidPosition(newX, newY) && !grid[newX][newY].walls[0];
-            if (i == 3) hasNoWall = !grid[current.first][current.second].walls[3] && isValidPosition(newX, newY) && !grid[newX][newY].walls[1];
-            
-            if (isValidPosition(newX, newY) && !visited[newX][newY] && hasNoWall) {
-                dfs({newX, newY});
+        for (int nextIndex = 0; nextIndex < totalCells; nextIndex++) {
+            if (adjacencyMatrix[currentIndex][nextIndex] && !visited[nextIndex]) {
+                dfs(nextIndex);
             }
         }
         
-        visited[current.first][current.second] = false;
+        visited[currentIndex] = false;
         currentPath.pop_back();
     };
     
-    dfs(startPos);
+    dfs(startIndex);
     
-    // Find the best path (same logic as BFS)
+    // Sort and return best path (same logic as before)
     if (allPaths.empty()) return {};
     
     bool hasWords = false;
@@ -1044,4 +1078,45 @@ std::vector<std::pair<int, int>> Game::findShortestPath() {
     }
     
     return {};
+}
+
+void Game::updateAdjacencyMatrix() {
+    int totalCells = gridSize * gridSize;
+    // Reset adjacency matrix
+    for (auto& row : adjacencyMatrix) {
+        std::fill(row.begin(), row.end(), false);
+    }
+    
+    // Fill the adjacency matrix based on wall information
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize; j++) {
+            int currentIndex = i * gridSize + j;
+            
+            // Check all four directions
+            // Up
+            if (i > 0 && !grid[i][j].walls[0] && !grid[i-1][j].walls[2]) {
+                int neighborIndex = (i-1) * gridSize + j;
+                adjacencyMatrix[currentIndex][neighborIndex] = true;
+                adjacencyMatrix[neighborIndex][currentIndex] = true;
+            }
+            // Right
+            if (j < gridSize-1 && !grid[i][j].walls[1] && !grid[i][j+1].walls[3]) {
+                int neighborIndex = i * gridSize + (j+1);
+                adjacencyMatrix[currentIndex][neighborIndex] = true;
+                adjacencyMatrix[neighborIndex][currentIndex] = true;
+            }
+            // Down
+            if (i < gridSize-1 && !grid[i][j].walls[2] && !grid[i+1][j].walls[0]) {
+                int neighborIndex = (i+1) * gridSize + j;
+                adjacencyMatrix[currentIndex][neighborIndex] = true;
+                adjacencyMatrix[neighborIndex][currentIndex] = true;
+            }
+            // Left
+            if (j > 0 && !grid[i][j].walls[3] && !grid[i][j-1].walls[1]) {
+                int neighborIndex = i * gridSize + (j-1);
+                adjacencyMatrix[currentIndex][neighborIndex] = true;
+                adjacencyMatrix[neighborIndex][currentIndex] = true;
+            }
+        }
+    }
 } 

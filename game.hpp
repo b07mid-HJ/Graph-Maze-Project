@@ -69,6 +69,7 @@ public:
 private:
     bool isValidPosition(int x, int y) const;
     void initializeAdjacencyMatrix();
+    void updateAdjacencyMatrix();
     void generateMazeUsingDFS();
     std::vector<std::pair<int, int>> getUnvisitedNeighbors(int x, int y);
     void removeWall(int x1, int y1, int x2, int y2);
@@ -97,6 +98,11 @@ private:
     std::vector<std::pair<int, int>> findFirstPath();  // For easy difficulty
     std::vector<std::pair<int, int>> findShortestPath();  // For medium difficulty
     // Hard difficulty will use existing dfsSearch()
+    
+    int coordToIndex(int x, int y) const { return x * gridSize + y; }
+    std::pair<int, int> indexToCoord(int index) const { 
+        return {index / gridSize, index % gridSize}; 
+    }
 };
 
 #endif 
