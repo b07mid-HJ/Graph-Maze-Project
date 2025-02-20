@@ -24,7 +24,6 @@ int main() {
         // Generate maze and place words
         std::cout << "Generating maze and placing words...\n";
         game.generateGridDFS();
-        game.placeWordsInGrid();
         game.setRandomStartEnd();
         
         // Print initial maze
@@ -36,7 +35,7 @@ int main() {
         do {
             std::cout << "\nSelect mode:\n";
             std::cout << "1. BFS Algorithm\n";
-            std::cout << "2. DFS Algorithm\n";
+            std::cout << "2. Optimal DFS Algorithm\n";
             std::cout << "3. Dijkstra Algorithm\n";
             std::cout << "4. Manual Play\n";
             std::cout << "5. Versus AI\n";
@@ -75,7 +74,7 @@ int main() {
                 algoName = "BFS";
                 path = game.findPath(true);
             } else if (choice == '2') {
-                algoName = "DFS";
+                algoName = "Optimal DFS";
                 path = game.findPath(false);
             } else {  // choice == '3'
                 algoName = "Dijkstra";
