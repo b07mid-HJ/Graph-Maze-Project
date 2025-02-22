@@ -180,9 +180,9 @@ void Game::printGridWithWalls(bool showPath) const {
         for (int j = 0; j < gridSize; j++) {
             if (showPath) {
                 if (std::make_pair(i, j) == startPos) {
-                    std::cout << "\033[32m " << grid[i][j].letter << " \033[0m";  // Green letter for start
+                    std::cout << "\033[32m " << (grid[i][j].letter == ' ' ? '*' : grid[i][j].letter) << " \033[0m";  // Green
                 } else if (std::make_pair(i, j) == endPos) {
-                    std::cout << "\033[31m " << grid[i][j].letter << " \033[0m";  // Red letter for end
+                    std::cout << "\033[31m " << (grid[i][j].letter == ' ' ? '*' : grid[i][j].letter) << " \033[0m";  // Red
                 } else if (grid[i][j].isPath) {
                     std::cout << "\033[33m " << grid[i][j].letter << " \033[0m";  // Yellow for path
                 } else if (grid[i][j].visited) {
