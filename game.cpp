@@ -375,60 +375,51 @@ int Game::countWordsInPath(const std::vector<std::pair<int, int>>& path) const {
 }
 
 std::vector<std::pair<int, int>> Game::bfsSearch() {
-    allPaths.clear();
     int totalCells = gridSize * gridSize;
     std::vector<bool> visited(totalCells, false);
+    std::vector<int> parent(totalCells, -1);
     
     // Convert start and end positions to indices
     int startIndex = coordToIndex(startPos.first, startPos.second);
     int endIndex = coordToIndex(endPos.first, endPos.second);
     
-    std::queue<std::vector<int>> pathQueue;
-    pathQueue.push({startIndex});
+    std::queue<int> q;
+    q.push(startIndex);
     visited[startIndex] = true;
     
-    while (!pathQueue.empty()) {
-        auto currentPath = pathQueue.front();
-        pathQueue.pop();
+    bool foundPath = false;
+    while (!q.empty() && !foundPath) {
+        int currentIndex = q.front();
+        q.pop();
         
-        int currentIndex = currentPath.back();
-        
-        // Convert current index path to coordinates for visualization
-        std::vector<std::pair<int, int>> coordPath;
-        for (int idx : currentPath) {
-            coordPath.push_back({idx / gridSize, idx % gridSize});
-        }
-        visualizeTraversal(coordPath);
+        // Visualize current position
+        visualizeTraversal({{currentIndex / gridSize, currentIndex % gridSize}});
         
         if (currentIndex == endIndex) {
-            int wordCount = countWordsInPath(coordPath);
-            int score = calculateScore(coordPath);
-            allPaths.emplace_back(coordPath, wordCount, score);
-            continue;  // Continue searching for other possible paths
+            foundPath = true;
+            break;
         }
         
         // Check all possible connections in adjacency matrix
         for (int nextIndex = 0; nextIndex < totalCells; nextIndex++) {
             if (adjacencyMatrix[currentIndex][nextIndex] && !visited[nextIndex]) {
                 visited[nextIndex] = true;
-                auto newPath = currentPath;
-                newPath.push_back(nextIndex);
-                pathQueue.push(newPath);
+                parent[nextIndex] = currentIndex;
+                q.push(nextIndex);
             }
         }
     }
     
-    if (allPaths.empty()) return {};
+    if (!foundPath) return {};
     
-    // Sort paths by word count, score, and length
-    std::sort(allPaths.begin(), allPaths.end(), 
-        [](const PathInfo& a, const PathInfo& b) {
-            if (a.wordCount != b.wordCount) return a.wordCount > b.wordCount;
-            if (a.score != b.score) return a.score > b.score;
-            return a.path.size() < b.path.size();
-        });
+    // Reconstruct path from end to start
+    std::vector<std::pair<int, int>> path;
+    for (int current = endIndex; current != -1; current = parent[current]) {
+        path.push_back({current / gridSize, current % gridSize});
+    }
+    std::reverse(path.begin(), path.end());
     
-    return allPaths[0].path;
+    return path;
 }
 
 int Game::calculateScore(const std::vector<std::pair<int, int>>& path) const {
