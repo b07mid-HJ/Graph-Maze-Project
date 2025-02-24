@@ -178,20 +178,21 @@ void Game::printGridWithWalls(bool showPath) const {
         // Print cells and vertical walls
         std::cout << "|";
         for (int j = 0; j < gridSize; j++) {
+            char displayChar = (grid[i][j].letter == ' ') ? '_' : grid[i][j].letter;
             if (showPath) {
                 if (std::make_pair(i, j) == startPos) {
-                    std::cout << "\033[32m " << (grid[i][j].letter == ' ' ? '*' : grid[i][j].letter) << " \033[0m";  // Green
+                    std::cout << "\033[32m " << displayChar << " \033[0m";  // Green for start
                 } else if (std::make_pair(i, j) == endPos) {
-                    std::cout << "\033[31m " << (grid[i][j].letter == ' ' ? '*' : grid[i][j].letter) << " \033[0m";  // Red
+                    std::cout << "\033[31m " << displayChar << " \033[0m";  // Red for end
                 } else if (grid[i][j].isPath) {
-                    std::cout << "\033[33m " << grid[i][j].letter << " \033[0m";  // Yellow for path
+                    std::cout << "\033[33m " << displayChar << " \033[0m";  // Yellow for path
                 } else if (grid[i][j].visited) {
-                    std::cout << "\033[34m " << grid[i][j].letter << " \033[0m";  // Blue for visited
+                    std::cout << "\033[34m " << displayChar << " \033[0m";  // Blue for visited
                 } else {
-                    std::cout << " " << grid[i][j].letter << " ";
+                    std::cout << " " << displayChar << " ";
                 }
             } else {
-                std::cout << " " << grid[i][j].letter << " ";
+                std::cout << " " << displayChar << " ";
             }
             
             if (grid[i][j].walls[1]) std::cout << "|";
@@ -548,14 +549,15 @@ void Game::showFinalPath(const std::vector<std::pair<int, int>>& path) {
     for (int i = 0; i < gridSize; i++) {
         std::cout << "|";
         for (int j = 0; j < gridSize; j++) {
+            char displayChar = (grid[i][j].letter == ' ') ? '_' : grid[i][j].letter;
             if (std::make_pair(i, j) == startPos) {
-                std::cout << "\033[32m " << grid[i][j].letter << " \033[0m";
+                std::cout << "\033[32m " << displayChar << " \033[0m";
             } else if (std::make_pair(i, j) == endPos) {
-                std::cout << "\033[31m " << grid[i][j].letter << " \033[0m";
+                std::cout << "\033[31m " << displayChar << " \033[0m";
             } else if (grid[i][j].isPath) {
                 std::cout << "\033[33m X \033[0m";
             } else {
-                std::cout << " " << grid[i][j].letter << " ";
+                std::cout << " " << displayChar << " ";
             }
             
             if (grid[i][j].walls[1]) std::cout << "|";
@@ -862,10 +864,11 @@ void Game::startVersusAI(Difficulty diff) {
         // First row - Player's maze
         std::cout << "|";
         for (int j = 0; j < gridSize; j++) {
+            char displayChar = (grid[i][j].letter == ' ') ? '_' : grid[i][j].letter;
             if (std::make_pair(i, j) == startPos) {
-                std::cout << "\033[32m " << grid[i][j].letter << " \033[0m";
+                std::cout << "\033[32m " << displayChar << " \033[0m";
             } else if (std::make_pair(i, j) == endPos) {
-                std::cout << "\033[31m " << grid[i][j].letter << " \033[0m";
+                std::cout << "\033[31m " << displayChar << " \033[0m";
             } else {
                 bool isInPath = false;
                 for (const auto& pos : playerPath) {
@@ -877,7 +880,7 @@ void Game::startVersusAI(Difficulty diff) {
                 if (isInPath) {
                     std::cout << "\033[33m X \033[0m";
                 } else {
-                    std::cout << " " << grid[i][j].letter << " ";
+                    std::cout << " " << displayChar << " ";
                 }
             }
             if (grid[i][j].walls[1]) std::cout << "|";
@@ -890,10 +893,11 @@ void Game::startVersusAI(Difficulty diff) {
         // Second row - AI's maze
         std::cout << "|";
         for (int j = 0; j < gridSize; j++) {
+            char displayChar = (grid[i][j].letter == ' ') ? '_' : grid[i][j].letter;
             if (std::make_pair(i, j) == startPos) {
-                std::cout << "\033[32m " << grid[i][j].letter << " \033[0m";
+                std::cout << "\033[32m " << displayChar << " \033[0m";
             } else if (std::make_pair(i, j) == endPos) {
-                std::cout << "\033[31m " << grid[i][j].letter << " \033[0m";
+                std::cout << "\033[31m " << displayChar << " \033[0m";
             } else {
                 bool isInPath = false;
                 for (const auto& pos : aiPath) {
@@ -905,7 +909,7 @@ void Game::startVersusAI(Difficulty diff) {
                 if (isInPath) {
                     std::cout << "\033[33m X \033[0m";
                 } else {
-                    std::cout << " " << grid[i][j].letter << " ";
+                    std::cout << " " << displayChar << " ";
                 }
             }
             if (grid[i][j].walls[1]) std::cout << "|";

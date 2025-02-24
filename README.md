@@ -67,26 +67,32 @@ Adjacency Matrix (9×9):
 void Game::initializeAdjacencyMatrix() {
     int totalCells = gridSize * gridSize;
     adjacencyMatrix.resize(totalCells, std::vector<bool>(totalCells, false));
-
+    
+    // Fill the adjacency matrix based on wall information
     for (int i = 0; i < gridSize; i++) {
         for (int j = 0; j < gridSize; j++) {
             int currentIndex = i * gridSize + j;
-
+            
+            // Check all four directions
+            // Up
             if (i > 0 && !grid[i][j].walls[0] && !grid[i-1][j].walls[2]) {
                 int neighborIndex = (i-1) * gridSize + j;
                 adjacencyMatrix[currentIndex][neighborIndex] = true;
                 adjacencyMatrix[neighborIndex][currentIndex] = true;
             }
+            // Right
             if (j < gridSize-1 && !grid[i][j].walls[1] && !grid[i][j+1].walls[3]) {
                 int neighborIndex = i * gridSize + (j+1);
                 adjacencyMatrix[currentIndex][neighborIndex] = true;
                 adjacencyMatrix[neighborIndex][currentIndex] = true;
             }
+            // Down
             if (i < gridSize-1 && !grid[i][j].walls[2] && !grid[i+1][j].walls[0]) {
                 int neighborIndex = (i+1) * gridSize + j;
                 adjacencyMatrix[currentIndex][neighborIndex] = true;
                 adjacencyMatrix[neighborIndex][currentIndex] = true;
             }
+            // Left
             if (j > 0 && !grid[i][j].walls[3] && !grid[i][j-1].walls[1]) {
                 int neighborIndex = i * gridSize + (j-1);
                 adjacencyMatrix[currentIndex][neighborIndex] = true;
@@ -108,13 +114,16 @@ void Game::initializeAdjacencyMatrix() {
 ```cpp
 void Game::generateGridDFS() {
     generateMazeUsingDFS();
+    // Update adjacency matrix after maze generation
     updateAdjacencyMatrix();
-    assignRandomLetters();
+    // Initialize all cells with spaces before placing words
     for (auto& row : grid) {
         for (auto& cell : row) {
-            cell.letter = ' ';
+            cell.letter = ' ';  // Initialize with spaces
         }
     }
+    // Place words in the grid
+    placeWordsInGrid();
 }
 ```
 
@@ -135,6 +144,7 @@ void Game::generateGridDFS() {
 
 ```cpp
 void Game::generateMazeUsingDFS() {
+    // Reset all cells
     for (auto& row : grid) {
         for (auto& cell : row) {
             cell.visited = false;
@@ -144,9 +154,11 @@ void Game::generateMazeUsingDFS() {
 
     std::random_device rd;
     std::mt19937 gen(rd());
+    
+    // Start from a random cell
     int startX = gen() % gridSize;
     int startY = gen() % gridSize;
-
+    
     std::stack<std::pair<int, int>> stack;
     stack.push({startX, startY});
     grid[startX][startY].visited = true;
@@ -154,16 +166,19 @@ void Game::generateMazeUsingDFS() {
     while (!stack.empty()) {
         auto current = stack.top();
         auto neighbors = getUnvisitedNeighbors(current.first, current.second);
-
+        
         if (neighbors.empty()) {
             stack.pop();
             continue;
         }
 
+        // Randomly choose next neighbor
         std::uniform_int_distribution<> dis(0, neighbors.size() - 1);
         auto next = neighbors[dis(gen)];
-
+        
+        // Remove wall between current and next
         removeWall(current.first, current.second, next.first, next.second);
+        
         grid[next.first][next.second].visited = true;
         stack.push(next);
     }
@@ -213,18 +228,16 @@ void Game::placeWordsInGrid() {
     std::random_device rd;
     std::mt19937 gen(rd());
     
-    // Iterate through dictionary words
     for (const auto& word : dictionary) {
         if (word.length() > 2) {  // Only place words longer than 2 letters
             int attempts = 0;
             bool placed = false;
             
-            while (!placed && attempts < 10) {  // Try 10 times to place each word
-                // Random starting position
+            while (!placed && attempts < 10) {
                 int x = gen() % gridSize;
                 int y = gen() % gridSize;
                 
-                // Try all 8 directions (horizontal, vertical, diagonal)
+                // Try different directions
                 const int dx[] = {-1, 0, 1, 0, -1, -1, 1, 1};
                 const int dy[] = {0, 1, 0, -1, -1, 1, -1, 1};
                 
@@ -277,21 +290,21 @@ void Game::placeWordsInGrid() {
 
 ```cpp
 int Game::calculateScore(const std::vector<std::pair<int, int>>& path) const {
-    // Get path letters
+    // Get the sequence of letters in the path
     std::string pathLetters;
     for (const auto& pos : path) {
         pathLetters += grid[pos.first][pos.second].letter;
     }
     
-    // Score calculation
+    // Calculate score based on words found
     int score = 0;
     for (const auto& word : dictionary) {
         if (pathLetters.find(word) != std::string::npos) {
-            score += word.length() * 2;  // Double points for longer words
+            score += word.length() * 2;  // More points for longer words
         }
     }
     
-    // Path length penalty
+    // Subtract points for path length to favor shorter paths
     score -= path.size();
     return score;
 }
@@ -306,11 +319,13 @@ int Game::calculateScore(const std::vector<std::pair<int, int>>& path) const {
 
 ```cpp
 int Game::countWordsInPath(const std::vector<std::pair<int, int>>& path) const {
+    // Get the sequence of letters in the path
     std::string pathLetters;
     for (const auto& pos : path) {
         pathLetters += grid[pos.first][pos.second].letter;
     }
     
+    // Count how many dictionary words appear in the path sequence
     int wordCount = 0;
     for (const auto& word : dictionary) {
         if (pathLetters.find(word) != std::string::npos) {
@@ -394,26 +409,29 @@ AI's Path: W-O-R-D
 - Most intelligent but slowest solution.
 
 ```cpp
-std::vector<std::pair<int, int>> Game::dfsSearch() {
+std::vector<std::pair<int, int>> Game::bfsSearch() {
     allPaths.clear();
     int totalCells = gridSize * gridSize;
     std::vector<bool> visited(totalCells, false);
-    std::vector<int> currentPath;
     
+    // Convert start and end positions to indices
     int startIndex = coordToIndex(startPos.first, startPos.second);
     int endIndex = coordToIndex(endPos.first, endPos.second);
     
-    std::function<void(int)> dfs = [&](int currentIndex) {
-        visited[currentIndex] = true;
-        currentPath.push_back(currentIndex);
+    std::queue<std::vector<int>> pathQueue;
+    pathQueue.push({startIndex});
+    visited[startIndex] = true;
+    
+    while (!pathQueue.empty()) {
+        auto currentPath = pathQueue.front();
+        pathQueue.pop();
         
-        auto currentCoord = indexToCoord(currentIndex);
-        grid[currentCoord.first][currentCoord.second].visited = true;
+        int currentIndex = currentPath.back();
         
-        // Convert to coordinates for visualization
+        // Convert current index path to coordinates for visualization
         std::vector<std::pair<int, int>> coordPath;
         for (int idx : currentPath) {
-            coordPath.push_back(indexToCoord(idx));
+            coordPath.push_back({idx / gridSize, idx % gridSize});
         }
         visualizeTraversal(coordPath);
         
@@ -421,25 +439,23 @@ std::vector<std::pair<int, int>> Game::dfsSearch() {
             int wordCount = countWordsInPath(coordPath);
             int score = calculateScore(coordPath);
             allPaths.emplace_back(coordPath, wordCount, score);
+            continue;  // Continue searching for other possible paths
         }
         
-        // Check all possible connections
+        // Check all possible connections in adjacency matrix
         for (int nextIndex = 0; nextIndex < totalCells; nextIndex++) {
             if (adjacencyMatrix[currentIndex][nextIndex] && !visited[nextIndex]) {
-                dfs(nextIndex);
+                visited[nextIndex] = true;
+                auto newPath = currentPath;
+                newPath.push_back(nextIndex);
+                pathQueue.push(newPath);
             }
         }
-        
-        visited[currentIndex] = false;
-        currentPath.pop_back();
-    };
+    }
     
-    dfs(startIndex);
-    
-    // Find best path
     if (allPaths.empty()) return {};
     
-    // Sort paths by criteria
+    // Sort paths by word count, score, and length
     std::sort(allPaths.begin(), allPaths.end(), 
         [](const PathInfo& a, const PathInfo& b) {
             if (a.wordCount != b.wordCount) return a.wordCount > b.wordCount;
