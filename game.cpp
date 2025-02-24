@@ -949,7 +949,7 @@ std::vector<std::pair<int, int>> Game::findAIPath(Difficulty diff) {
         case Difficulty::EASY:
             return findFirstPath();
         case Difficulty::MEDIUM:
-            return findShortestPath();
+            return findPathDijkstra();
         case Difficulty::HARD:
             return dfsSearch();  // Uses existing implementation that finds optimal path
         default:
@@ -989,46 +989,46 @@ std::vector<std::pair<int, int>> Game::findFirstPath() {
     return path;
 }
 
-std::vector<std::pair<int, int>> Game::findShortestPath() {
-    int totalCells = gridSize * gridSize;
-    std::queue<std::vector<int>> pathQueue;
-    std::vector<bool> visited(totalCells, false);
+// std::vector<std::pair<int, int>> Game::findShortestPath() {
+//     int totalCells = gridSize * gridSize;
+//     std::queue<std::vector<int>> pathQueue;
+//     std::vector<bool> visited(totalCells, false);
     
-    // Convert start position to index and initialize
-    int startIndex = coordToIndex(startPos.first, startPos.second);
-    int endIndex = coordToIndex(endPos.first, endPos.second);
-    pathQueue.push({startIndex});
-    visited[startIndex] = true;
+//     // Convert start position to index and initialize
+//     int startIndex = coordToIndex(startPos.first, startPos.second);
+//     int endIndex = coordToIndex(endPos.first, endPos.second);
+//     pathQueue.push({startIndex});
+//     visited[startIndex] = true;
     
-    while (!pathQueue.empty()) {
-        auto currentPath = pathQueue.front();
-        pathQueue.pop();
+//     while (!pathQueue.empty()) {
+//         auto currentPath = pathQueue.front();
+//         pathQueue.pop();
         
-        int currentIndex = currentPath.back();
+//         int currentIndex = currentPath.back();
         
-        if (currentIndex == endIndex) {
-            // Convert indices back to coordinates for return
-            std::vector<std::pair<int, int>> coordPath;
-            for (int index : currentPath) {
-                coordPath.push_back(indexToCoord(index));
-            }
-            showFinalPath(coordPath);
-            return coordPath;
-        }
+//         if (currentIndex == endIndex) {
+//             // Convert indices back to coordinates for return
+//             std::vector<std::pair<int, int>> coordPath;
+//             for (int index : currentPath) {
+//                 coordPath.push_back(indexToCoord(index));
+//             }
+//             showFinalPath(coordPath);
+//             return coordPath;
+//         }
         
-        // Check all possible connections in adjacency matrix
-        for (int nextIndex = 0; nextIndex < totalCells; nextIndex++) {
-            if (adjacencyMatrix[currentIndex][nextIndex] && !visited[nextIndex]) {
-                visited[nextIndex] = true;
-                auto newPath = currentPath;
-                newPath.push_back(nextIndex);
-                pathQueue.push(newPath);
-            }
-        }
-    }
+//         // Check all possible connections in adjacency matrix
+//         for (int nextIndex = 0; nextIndex < totalCells; nextIndex++) {
+//             if (adjacencyMatrix[currentIndex][nextIndex] && !visited[nextIndex]) {
+//                 visited[nextIndex] = true;
+//                 auto newPath = currentPath;
+//                 newPath.push_back(nextIndex);
+//                 pathQueue.push(newPath);
+//             }
+//         }
+//     }
     
-    return {};
-}
+//     return {};
+// }
 
 void Game::updateAdjacencyMatrix() {
     int totalCells = gridSize * gridSize;
