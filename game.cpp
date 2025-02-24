@@ -569,7 +569,7 @@ void Game::showFinalPath(const std::vector<std::pair<int, int>>& path) {
     for (const auto& word : dictionary) {
         if (pathLetters.find(word) != std::string::npos) {
             totalWords++;
-            score += word.length();
+            score += word.length()*2;
             std::cout << "- " << word << " (score: " << word.length() << ")\n";
         }
     }
