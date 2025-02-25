@@ -350,7 +350,15 @@ void Game::delay() const {
 
 std::vector<std::pair<int, int>> Game::findPath(bool useBFS) {
     clearVisited();
-    auto path = useBFS ? bfsSearch() : dfsSearch();
+    
+    // Ask user about visualization
+    char choice;
+    std::cout << "\nDo you want to visualize the pathfinding process? (y/n): ";
+    std::cin >> choice;
+    bool skipVis = (tolower(choice) != 'y');
+    
+    // Store current path
+    auto path = useBFS ? bfsSearch(skipVis) : dfsSearch(skipVis);
     if (!path.empty()) {
         showFinalPath(path);
     }
@@ -374,7 +382,7 @@ int Game::countWordsInPath(const std::vector<std::pair<int, int>>& path) const {
     return wordCount;
 }
 
-std::vector<std::pair<int, int>> Game::bfsSearch() {
+std::vector<std::pair<int, int>> Game::bfsSearch(bool skipVisualization) {
     int totalCells = gridSize * gridSize;
     std::vector<bool> visited(totalCells, false);
     std::vector<int> parent(totalCells, -1);
@@ -392,8 +400,9 @@ std::vector<std::pair<int, int>> Game::bfsSearch() {
         int currentIndex = q.front();
         q.pop();
         
-        // Visualize current position
-        visualizeTraversal({{currentIndex / gridSize, currentIndex % gridSize}});
+        if (!skipVisualization) {
+            visualizeTraversal({{currentIndex / gridSize, currentIndex % gridSize}});
+        }
         
         if (currentIndex == endIndex) {
             foundPath = true;
@@ -433,16 +442,17 @@ int Game::calculateScore(const std::vector<std::pair<int, int>>& path) const {
     int score = 0;
     for (const auto& word : dictionary) {
         if (pathLetters.find(word) != std::string::npos) {
-            score += word.length() * 2;  // More points for longer words
+            // Exponential scoring for word length to make words more valuable
+            score += word.length() * word.length() * 10;  // Square the length and multiply by 10
         }
     }
+    // Small penalty for path length (reduced impact)
+    score -= path.size() / 2;  // Halved the path length penalty
     
-    // Subtract points for path length to favor shorter paths
-    score -= path.size();
     return score;
 }
 
-std::vector<std::pair<int, int>> Game::dfsSearch() {
+std::vector<std::pair<int, int>> Game::dfsSearch(bool skipVisualization) {
     allPaths.clear();
     int totalCells = gridSize * gridSize;
     std::vector<bool> visited(totalCells, false);
@@ -455,13 +465,14 @@ std::vector<std::pair<int, int>> Game::dfsSearch() {
         visited[currentIndex] = true;
         currentPath.push_back(currentIndex);
         
-        // Convert current path to coordinates for visualization
-        std::vector<std::pair<int, int>> coordPath;
-        for (int idx : currentPath) {
-            coordPath.push_back({idx / gridSize, idx % gridSize});
+       std::vector<std::pair<int, int>> coordPath;
+            for (int idx : currentPath) {
+                coordPath.push_back({idx / gridSize, idx % gridSize});
+            } 
+        if (!skipVisualization) {
+            
+            visualizeTraversal(coordPath);
         }
-        visualizeTraversal(coordPath);
-        
         if (currentIndex == endIndex) {
             int wordCount = countWordsInPath(coordPath);
             int score = calculateScore(coordPath);
@@ -531,7 +542,7 @@ void Game::showFinalPath(const std::vector<std::pair<int, int>>& path) {
     
     std::cout << "\nFinal Path Found:\n";
     
-    // Print maze with X markers
+    // Print maze with colored letters instead of X markers
     for (int j = 0; j < gridSize; j++) {
         std::cout << "+---";
     }
@@ -542,11 +553,11 @@ void Game::showFinalPath(const std::vector<std::pair<int, int>>& path) {
         for (int j = 0; j < gridSize; j++) {
             char displayChar = (grid[i][j].letter == ' ') ? '_' : grid[i][j].letter;
             if (std::make_pair(i, j) == startPos) {
-                std::cout << "\033[32m " << displayChar << " \033[0m";
+                std::cout << "\033[32m " << displayChar << " \033[0m";  // Green for start
             } else if (std::make_pair(i, j) == endPos) {
-                std::cout << "\033[31m " << displayChar << " \033[0m";
+                std::cout << "\033[31m " << displayChar << " \033[0m";  // Red for end
             } else if (grid[i][j].isPath) {
-                std::cout << "\033[33m X \033[0m";
+                std::cout << "\033[33m " << displayChar << " \033[0m";  // Yellow for path
             } else {
                 std::cout << " " << displayChar << " ";
             }
@@ -569,11 +580,12 @@ void Game::showFinalPath(const std::vector<std::pair<int, int>>& path) {
     for (const auto& word : dictionary) {
         if (pathLetters.find(word) != std::string::npos) {
             totalWords++;
-            score += word.length()*2;
-            std::cout << "- " << word << " (score: " << word.length() << ")\n";
+            // Update scoring here too
+            int wordScore = word.length() * word.length() * 10;
+            std::cout << "- " << word << " (score: " << wordScore << ")\n";
         }
     }
-    
+    score = calculateScore(path);
     std::cout << "\nTotal words found: " << totalWords << "\n";
     std::cout << "Final score: " << score << "\n";
     std::cout << "Path length: " << path.size() << "\n";
@@ -631,7 +643,6 @@ void Game::startManualGame() {
         std::cout << "S = Down\n";
         std::cout << "A = Left\n";
         std::cout << "D = Right\n";
-        std::cout << "Q = Quit\n";
         
         char key = _getch();  // Get character without Enter
         bool moved = false;
@@ -641,7 +652,6 @@ void Game::startManualGame() {
             case 'D': moved = makeMove(Direction::RIGHT); break;
             case 'S': moved = makeMove(Direction::DOWN); break;
             case 'A': moved = makeMove(Direction::LEFT); break;
-            case 'Q': return;
         }
         
         if (moved) {
@@ -708,19 +718,25 @@ bool Game::makeMove(Direction dir) {
 }
 
 std::vector<std::pair<int, int>> Game::findPathDijkstra() {
-    // First show initial maze
-    std::cout << "\nInitial Maze:\n";
-    printGridWithWalls(true);
-    std::cout << "\nPress any key to start pathfinding...";
-    _getch();
+    // Ask user about visualization
+    char choice;
+    std::cout << "\nDo you want to visualize the pathfinding process? (y/n): ";
+    std::cin >> choice;
+    bool skipVis = (tolower(choice) != 'y');
     
-    allPaths.clear();
-    clearVisited();  // Clear any previous visited marks
+    if (!skipVis) {
+        std::cout << "\nInitial Maze:\n";
+        printGridWithWalls(true);
+        std::cout << "\nPress any key to start pathfinding...";
+        _getch();
+    }
+    
+    clearVisited();
     
     int totalCells = gridSize * gridSize;
     std::vector<int> distance(totalCells, INT_MAX);
+    std::vector<int> previous(totalCells, -1);
     std::vector<bool> visited(totalCells, false);
-    std::map<int, std::vector<std::pair<int, int>>> paths;
     
     // Convert start and end positions to indices
     int startIndex = coordToIndex(startPos.first, startPos.second);
@@ -733,7 +749,6 @@ std::vector<std::pair<int, int>> Game::findPathDijkstra() {
     // Initialize start position
     distance[startIndex] = 0;
     pq.push({0, startIndex});
-    paths[startIndex] = {startPos};
     
     while (!pq.empty()) {
         int currentDist = pq.top().first;
@@ -743,70 +758,58 @@ std::vector<std::pair<int, int>> Game::findPathDijkstra() {
         if (visited[currentIndex]) continue;
         visited[currentIndex] = true;
         
-        auto currentCoord = indexToCoord(currentIndex);
-        grid[currentCoord.first][currentCoord.second].visited = true;
-        
-        // Show exploration progress
-        system("cls");
-        std::cout << "\nExploring maze using Dijkstra's algorithm...\n";
-        printGridWithWalls(true);
-        delay();
+        if (!skipVis) {
+            auto currentCoord = indexToCoord(currentIndex);
+            grid[currentCoord.first][currentCoord.second].visited = true;
+            
+            system("cls");
+            std::cout << "\nExploring maze using Dijkstra's algorithm...\n";
+            printGridWithWalls(true);
+            delay();
+        }
         
         if (currentIndex == endIndex) {
-            // Found a path to end
-            int wordCount = countWordsInPath(paths[currentIndex]);
-            int score = calculateScore(paths[currentIndex]);
-            allPaths.emplace_back(paths[currentIndex], wordCount, score);
-            continue;  // Continue searching for other possible paths
+            break;  // Found shortest path to end
         }
         
         // Check all possible connections in adjacency matrix
         for (int nextIndex = 0; nextIndex < totalCells; nextIndex++) {
             if (!adjacencyMatrix[currentIndex][nextIndex] || visited[nextIndex]) continue;
             
-            auto nextCoord = indexToCoord(nextIndex);
-            auto currentPath = paths[currentIndex];
-            currentPath.push_back(nextCoord);
-            
-            // Calculate edge weight based on potential words
-            std::string pathWord;
-            for (const auto& pos : currentPath) {
-                pathWord += grid[pos.first][pos.second].letter;
-            }
-            
-            int weight = isValidWord(pathWord) ? 1 : 2;
+            int weight = 1; // Using uniform edge weights
             int newDist = currentDist + weight;
             
             if (newDist < distance[nextIndex]) {
                 distance[nextIndex] = newDist;
-                paths[nextIndex] = currentPath;
+                previous[nextIndex] = currentIndex;
                 pq.push({newDist, nextIndex});
             }
         }
     }
     
-    if (allPaths.empty()) return {};
+    // Reconstruct path
+    std::vector<std::pair<int, int>> path;
+    if (distance[endIndex] == INT_MAX) {
+        return path; // No path found
+    }
     
-    // Sort paths based on criteria
-    std::sort(allPaths.begin(), allPaths.end(), 
-        [](const PathInfo& a, const PathInfo& b) {
-            if (a.wordCount != b.wordCount) return a.wordCount > b.wordCount;
-            if (a.score != b.score) return a.score > b.score;
-            return a.path.size() < b.path.size();
-        });
+    // Build path from end to start
+    for (int current = endIndex; current != -1; current = previous[current]) {
+        path.push_back(indexToCoord(current));
+    }
+    std::reverse(path.begin(), path.end());
     
-    // Show final path with X markers
+    // Show final path
     system("cls");
     std::cout << "\nFinal Path Found:\n";
-    clearVisited();  // Clear exploration marks
+    clearVisited();
     
-    // Mark final path with X
-    for (const auto& pos : allPaths[0].path) {
+    for (const auto& pos : path) {
         grid[pos.first][pos.second].isPath = true;
     }
-    showFinalPath(allPaths[0].path);
+    showFinalPath(path);
     
-    return allPaths[0].path;
+    return path;
 }
 
 void Game::startVersusAI(Difficulty diff) {
@@ -817,9 +820,7 @@ void Game::startVersusAI(Difficulty diff) {
     
     // Store player's path and score
     auto playerPath = manualPath;
-    int playerWordScore = score;
-    int pathLengthBonus = std::max(0, 50 - (int)playerPath.size()) * 2;
-    int playerScore = playerWordScore + pathLengthBonus;
+    int playerScore = calculateScore(playerPath);  // Use calculateScore instead
     
     // AI's turn
     std::cout << "\nPress any key for AI's turn...";
@@ -828,9 +829,7 @@ void Game::startVersusAI(Difficulty diff) {
     std::cout << "=========\n";
     clearVisited();  // Reset the grid
     auto aiPath = findAIPath(diff);
-    int aiWordScore = score;
-    int aiPathBonus = std::max(0, 50 - (int)aiPath.size()) * 2;
-    int aiScore = aiWordScore + aiPathBonus;
+    int aiScore = calculateScore(aiPath);  // Use calculateScore for AI too
     
     // Show both paths side by side
     system("cls");
@@ -869,7 +868,7 @@ void Game::startVersusAI(Difficulty diff) {
                     }
                 }
                 if (isInPath) {
-                    std::cout << "\033[33m X \033[0m";
+                    std::cout << "\033[33m " << displayChar << " \033[0m";
                 } else {
                     std::cout << " " << displayChar << " ";
                 }
@@ -898,7 +897,7 @@ void Game::startVersusAI(Difficulty diff) {
                     }
                 }
                 if (isInPath) {
-                    std::cout << "\033[33m X \033[0m";
+                    std::cout << "\033[33m " << displayChar << " \033[0m";
                 } else {
                     std::cout << " " << displayChar << " ";
                 }
@@ -924,12 +923,10 @@ void Game::startVersusAI(Difficulty diff) {
     // Show scores
     std::cout << "\nPlayer Score Breakdown:";
     std::cout << std::string(gridSize * 4 - 5, ' ') << "AI Score Breakdown:\n";
-    std::cout << "Word Score: " << playerWordScore;
-    std::cout << std::string(gridSize * 4 - 5, ' ') << "Word Score: " << aiWordScore << "\n";
+    std::cout << "Word Score: " << playerScore+playerPath.size()/2;  // Changed from playerWordScore
+    std::cout << std::string(gridSize * 4 - 5, ' ') << "Word Score: " << aiScore+aiPath.size()/2 << "\n";  // Changed from aiWordScore
     std::cout << "Path Length: " << playerPath.size();
     std::cout << std::string(gridSize * 4 - 5, ' ') << "Path Length: " << aiPath.size() << "\n";
-    std::cout << "Length Bonus: " << pathLengthBonus;
-    std::cout << std::string(gridSize * 4 - 5, ' ') << "Length Bonus: " << aiPathBonus << "\n";
     std::cout << "Total Score: " << playerScore;
     std::cout << std::string(gridSize * 4 - 5, ' ') << "Total Score: " << aiScore << "\n\n";
     
@@ -950,8 +947,14 @@ std::vector<std::pair<int, int>> Game::findAIPath(Difficulty diff) {
             return findFirstPath();
         case Difficulty::MEDIUM:
             return findPathDijkstra();
-        case Difficulty::HARD:
-            return dfsSearch();  // Uses existing implementation that finds optimal path
+        case Difficulty::HARD: {
+            // Ask user about visualization for hard mode
+            char choice;
+            std::cout << "\nDo you want to visualize AI's pathfinding process? (y/n): ";
+            std::cin >> choice;
+            bool skipVis = (tolower(choice) != 'y');
+            return dfsSearch(skipVis);  // Pass visualization preference to dfsSearch
+        }
         default:
             return {};
     }

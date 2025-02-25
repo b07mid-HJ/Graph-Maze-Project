@@ -42,6 +42,9 @@ private:
     std::vector<PathInfo> allPaths;  // Store all valid paths
     int calculateScore(const std::vector<std::pair<int, int>>& path) const;
     
+    std::vector<std::pair<int, int>> bfsSearch(bool skipVisualization = false);
+    std::vector<std::pair<int, int>> dfsSearch(bool skipVisualization = false);
+    
 public:
     Game(int size);
     void loadDictionary(const std::string& filename);
@@ -75,8 +78,6 @@ private:
     void removeWall(int x1, int y1, int x2, int y2);
     bool canPlaceWord(const std::string& word, int x, int y, int dx, int dy);
     void placeWord(const std::string& word, int x, int y, int dx, int dy);
-    std::vector<std::pair<int, int>> bfsSearch();
-    std::vector<std::pair<int, int>> dfsSearch();
     void clearVisited();
     void delay() const;  // For visualization
     void assignRandomLetters();
